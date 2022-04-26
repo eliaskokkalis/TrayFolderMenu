@@ -1,0 +1,25 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 16
+VisualStudioVersion = 16.0.32407.337
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TrayFolderMenu", "TrayFolderMenu.csproj", "{502FFD83-10ED-4882-BA3B-7B6A1E4F5AD1}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{502FFD83-10ED-4882-BA3B-7B6A1E4F5AD1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{502FFD83-10ED-4882-BA3B-7B6A1E4F5AD1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{502FFD83-10ED-4882-BA3B-7B6A1E4F5AD1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{502FFD83-10ED-4882-BA3B-7B6A1E4F5AD1}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {4691BC39-F5BE-43D9-AC94-7A87D9EE7E37}
+	EndGlobalSection
+EndGlobal
