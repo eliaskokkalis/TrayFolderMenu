@@ -17,9 +17,11 @@ namespace TrayFolderMenu
 {
     public partial class frmOptions : Form
     {
-        public ConcurrentDictionary<string, Image> CachedIcons = new ConcurrentDictionary<string, Image>();
-        public List<string> linkExtensions = new List<string>() { ".lnk", ".url" };
-
+        private ConcurrentDictionary<string, Image> CachedIcons = new ConcurrentDictionary<string, Image>();
+        private List<string> noIconCacheExtensions = new List<string>() { ".lnk", ".url", ".exe" };
+        private List<FileSystemWatcher> FileSystemWatchers = new List<FileSystemWatcher>();
+        private DateTime? LastChangeNotification = null;
+        private bool FW_HaveChanges = false;
         public frmOptions()
         {
             InitializeComponent();
@@ -33,27 +35,55 @@ namespace TrayFolderMenu
             {
                 lstFolders.Items.Add(folder);
             }
-            mnuRightClick.Items.Clear();
+            createFileWatchers();
             backgroundWorker1.RunWorkerAsync();
         }
 
-        private void icoNotify_DoubleClick(object sender, EventArgs e)
+        private void timer1_Tick(object sender, EventArgs e)
         {
-            if (!backgroundWorker1.IsBusy)
+            if (!backgroundWorker1.IsBusy && FW_HaveChanges == true)
             {
-                this.Show();
-                this.BringToFront();
+                timer1.Stop();
+                FW_HaveChanges = false;
+                backgroundWorker1.RunWorkerAsync();
             }
-            else
+        }
+        private void backgroundWorker1_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
+        {
+            timer1.Start();
+        }
+
+        private void createFileWatchers()
+        {
+            FileSystemWatchers.ForEach(x => x.Dispose());
+            FileSystemWatchers.Clear();
+            foreach (var folder in Properties.Settings.Default.Folders)
             {
-                new ToastContentBuilder().AddText("Loading...").AddText("Please wait").Show();
+                if (System.IO.Directory.Exists(folder))
+                {
+                    var fw = new FileSystemWatcher()
+                    {
+                        Path = folder,
+                        IncludeSubdirectories = true,
+                        SynchronizingObject = this,
+                        EnableRaisingEvents = true
+                    };
+                    fw.Created += FW_Changed;
+                    fw.Deleted += FW_Changed;
+                    fw.Renamed += FW_Changed;
+                    fw.Error += FW_Error;
+                    FileSystemWatchers.Add(fw);
+                }
             }
         }
 
-        #region Left Click
+        #region Menu building
 
-        private void LoadFolderMenus(object sender, DoWorkEventArgs e)
+        //BackgroundWorker job
+        private void backgroundWorker1_DoWork(object sender, DoWorkEventArgs e)
         {
+            mnuRightClick.Items.Clear();
+
             var folders = new List<string>();
             foreach (var folder in Properties.Settings.Default.Folders)
             {
@@ -70,6 +100,25 @@ namespace TrayFolderMenu
                     mnuRightClick.Items.Add(menu);
                 }
             }
+        }
+
+        private void FW_Error(object sender, ErrorEventArgs e)
+        {
+            InvokeShowFWError(e);
+        }
+        private delegate void ShowFWErrorDelegate(ErrorEventArgs e);
+        private void InvokeShowFWError(ErrorEventArgs e)
+        {
+            _ = Invoke(new ShowFWErrorDelegate(ShowFWError), e);
+        }
+        private void ShowFWError(ErrorEventArgs e)
+        {
+            new ToastContentBuilder().AddText("Error").AddText(e.GetException().Message).Show();
+        }
+
+        private void FW_Changed(object sender, FileSystemEventArgs e)
+        {
+            FW_HaveChanges = true;
         }
 
         private void MakeTree(string folder, ToolStripMenuItem parentMenu)
@@ -110,7 +159,7 @@ namespace TrayFolderMenu
         {
             var menu = new ToolStripMenuItem();
             var ext = System.IO.Path.GetExtension(file);
-            if (linkExtensions.Contains(ext))
+            if (noIconCacheExtensions.Contains(ext))
                 menu.Text = System.IO.Path.GetFileNameWithoutExtension(file);
             else
                 menu.Text = System.IO.Path.GetFileName(file);
@@ -163,7 +212,6 @@ namespace TrayFolderMenu
             }
         }
 
-
         private void fileMenu_Click(object sender, MouseEventArgs e)
         {
             var menuItem = (ToolStripMenuItem)sender;
@@ -200,7 +248,19 @@ namespace TrayFolderMenu
 
         #endregion
 
-        #region Right Click
+        #region Configuration form on double click
+        private void icoNotify_DoubleClick(object sender, EventArgs e)
+        {
+            if (!backgroundWorker1.IsBusy)
+            {
+                this.Show();
+                this.BringToFront();
+            }
+            else
+            {
+                new ToastContentBuilder().AddText("Loading...").AddText("Please wait").Show();
+            }
+        }
 
         private void btnAdd_Click(object sender, EventArgs e)
         {
@@ -236,12 +296,9 @@ namespace TrayFolderMenu
             }
             Properties.Settings.Default.Folders = folders;
             Properties.Settings.Default.Save();
+            createFileWatchers();
+            FW_HaveChanges = true;
             this.Hide();
-            if (!backgroundWorker1.IsBusy)
-            {
-                mnuRightClick.Items.Clear();
-                backgroundWorker1.RunWorkerAsync();
-            }
         }
 
         private void frmOptions_Shown(object sender, EventArgs e)
@@ -256,6 +313,7 @@ namespace TrayFolderMenu
 
         #endregion
 
+        #region System
 
         [DllImport("shell32.dll", CharSet = CharSet.Ansi)]
         public static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbSizeFileInfo, uint uFlags);
@@ -273,7 +331,7 @@ namespace TrayFolderMenu
                 return null;
 
             var ext = System.IO.Path.GetExtension(fName);
-            if (!linkExtensions.Contains(ext) && CachedIcons.ContainsKey(ext))
+            if (!noIconCacheExtensions.Contains(ext) && CachedIcons.ContainsKey(ext))
                 return CachedIcons[ext];
 
             SHFILEINFO shinfo = new SHFILEINFO();
@@ -296,5 +354,8 @@ namespace TrayFolderMenu
             [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
             public string szTypeName;
         };
+
+        #endregion
+
     }
 }

@@ -40,12 +40,15 @@ namespace TrayFolderMenu
             this.btnOK = new System.Windows.Forms.Button();
             this.backgroundWorker1 = new System.ComponentModel.BackgroundWorker();
             this.btnExit = new System.Windows.Forms.Button();
+            this.timer1 = new System.Windows.Forms.Timer(this.components);
+            this.toolTip1 = new System.Windows.Forms.ToolTip(this.components);
             this.SuspendLayout();
             // 
             // icoNotify
             // 
             this.icoNotify.ContextMenuStrip = this.mnuRightClick;
             this.icoNotify.Icon = ((System.Drawing.Icon)(resources.GetObject("icoNotify.Icon")));
+            this.icoNotify.Text = "Right click for folder menu, double click for options.";
             this.icoNotify.Visible = true;
             this.icoNotify.DoubleClick += new System.EventHandler(this.icoNotify_DoubleClick);
             // 
@@ -74,6 +77,7 @@ namespace TrayFolderMenu
             this.btnAdd.Size = new System.Drawing.Size(32, 32);
             this.btnAdd.TabIndex = 3;
             this.btnAdd.Text = "+";
+            this.toolTip1.SetToolTip(this.btnAdd, "Add folder");
             this.btnAdd.UseVisualStyleBackColor = true;
             this.btnAdd.Click += new System.EventHandler(this.btnAdd_Click);
             // 
@@ -85,6 +89,7 @@ namespace TrayFolderMenu
             this.btnRemove.Size = new System.Drawing.Size(32, 32);
             this.btnRemove.TabIndex = 4;
             this.btnRemove.Text = "-";
+            this.toolTip1.SetToolTip(this.btnRemove, "Remove folder");
             this.btnRemove.UseVisualStyleBackColor = true;
             this.btnRemove.Click += new System.EventHandler(this.btnRemove_Click);
             // 
@@ -96,6 +101,7 @@ namespace TrayFolderMenu
             this.btnCancel.Size = new System.Drawing.Size(32, 32);
             this.btnCancel.TabIndex = 5;
             this.btnCancel.Text = "X";
+            this.toolTip1.SetToolTip(this.btnCancel, "Cancel changes and hide options");
             this.btnCancel.UseVisualStyleBackColor = true;
             this.btnCancel.Click += new System.EventHandler(this.btnCancel_Click);
             // 
@@ -107,12 +113,14 @@ namespace TrayFolderMenu
             this.btnOK.Size = new System.Drawing.Size(32, 32);
             this.btnOK.TabIndex = 6;
             this.btnOK.Text = "✓";
+            this.toolTip1.SetToolTip(this.btnOK, "Save changes and hide options");
             this.btnOK.UseVisualStyleBackColor = true;
             this.btnOK.Click += new System.EventHandler(this.btnOK_Click);
             // 
             // backgroundWorker1
             // 
-            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.LoadFolderMenus);
+            this.backgroundWorker1.DoWork += new System.ComponentModel.DoWorkEventHandler(this.backgroundWorker1_DoWork);
+            this.backgroundWorker1.RunWorkerCompleted += new System.ComponentModel.RunWorkerCompletedEventHandler(this.backgroundWorker1_RunWorkerCompleted);
             // 
             // btnExit
             // 
@@ -122,8 +130,18 @@ namespace TrayFolderMenu
             this.btnExit.Size = new System.Drawing.Size(122, 32);
             this.btnExit.TabIndex = 7;
             this.btnExit.Text = "Exit Application";
+            this.toolTip1.SetToolTip(this.btnExit, "Exit application");
             this.btnExit.UseVisualStyleBackColor = true;
             this.btnExit.Click += new System.EventHandler(this.btnExit_Click);
+            // 
+            // timer1
+            // 
+            this.timer1.Interval = 10000;
+            this.timer1.Tick += new System.EventHandler(this.timer1_Tick);
+            // 
+            // toolTip1
+            // 
+            this.toolTip1.AutomaticDelay = 300;
             // 
             // frmOptions
             // 
@@ -159,6 +177,8 @@ namespace TrayFolderMenu
         private System.Windows.Forms.Button btnOK;
         private System.ComponentModel.BackgroundWorker backgroundWorker1;
         private System.Windows.Forms.Button btnExit;
+        private System.Windows.Forms.Timer timer1;
+        private System.Windows.Forms.ToolTip toolTip1;
     }
 }
 
