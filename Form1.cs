@@ -68,6 +68,10 @@ namespace TrayFolderMenu
                         SynchronizingObject = this,
                         EnableRaisingEvents = true
                     };
+                    if (folder.ToLower().EndsWith("portableapps"))
+                    {
+                        fw.Filter = "*.exe";
+                    }
                     fw.Created += FW_Changed;
                     fw.Deleted += FW_Changed;
                     fw.Renamed += FW_Changed;
@@ -127,19 +131,51 @@ namespace TrayFolderMenu
             {
                 var subFolders = System.IO.Directory.GetDirectories(folder);
                 var files = System.IO.Directory.GetFiles(folder);
-                foreach (var subFolder in subFolders)
+                if (folder.ToLower().EndsWith("portableapps"))
                 {
-                    var menu = MakeFolderMenuItem(subFolder);
-                    MakeTree(subFolder, menu);
-                    parentMenu.DropDownItems.Add(menu);
-                }
+                    files = files.Where(x => Path.GetExtension(x) == ".exe").ToArray();
+                    subFolders = subFolders.Where(x => System.IO.Directory.GetFiles(x).Where(y => Path.GetExtension(y) == ".exe").Any()).ToArray();
+                    foreach (var subFolder in subFolders)
+                    {
+                        var subFiles = System.IO.Directory.GetFiles(subFolder, "*.exe");
+                        if (subFiles.Count() > 1)
+                        {
+                            var menu = MakeFolderMenuItem(subFolder);
+                            foreach (var subFile in subFiles)
+                            {
+                                var menuItem = MakeFileMenuItem(subFile);
+                                menu.DropDownItems.Add(menuItem);
+                            }
+                            parentMenu.DropDownItems.Add(menu);
+                        }
+                        else if (subFiles.Count() == 1)
+                        {
+                            var menuItem = MakeFileMenuItem(subFiles[0]);
+                            parentMenu.DropDownItems.Add(menuItem);
+                        }
+                    }
 
-                foreach (var file in files)
+                    foreach (var file in files)
+                    {
+                        var menu = MakeFileMenuItem(file);
+                        parentMenu.DropDownItems.Add(menu);
+                    }
+                }
+                else
                 {
-                    var menu = MakeFileMenuItem(file);
-                    parentMenu.DropDownItems.Add(menu);
-                }
+                    foreach (var subFolder in subFolders)
+                    {
+                        var menu = MakeFolderMenuItem(subFolder);
+                        MakeTree(subFolder, menu);
+                        parentMenu.DropDownItems.Add(menu);
+                    }
 
+                    foreach (var file in files)
+                    {
+                        var menu = MakeFileMenuItem(file);
+                        parentMenu.DropDownItems.Add(menu);
+                    }
+                }
             }
         }
 

@@ -6,6 +6,7 @@ using System.Drawing;
 using System.Windows.Forms;
 using System.IO;
 using System.Security.Permissions;
+using System.Xml.Linq;
 
 namespace TrayFolderMenu
 {
@@ -1581,4 +1582,5 @@ namespace TrayFolderMenu
     }
 
     #endregion
+
 }
