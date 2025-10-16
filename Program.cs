@@ -1,4 +1,4 @@
-using Microsoft.Toolkit.Uwp.Notifications;
+﻿using Microsoft.Toolkit.Uwp.Notifications;
 using System;
 using System.Collections.Concurrent;
 using System.Collections.Generic;
@@ -8,8 +8,10 @@ using System.Drawing;
 using System.IO;
 using System.Linq;
 using System.Runtime.InteropServices;
+using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Forms;
+using static TrayFolderMenu.LaunchInfo;
 
 namespace TrayFolderMenu
 {
@@ -21,8 +23,6 @@ namespace TrayFolderMenu
         static Timer timer = new Timer();
         static List<FileSystemWatcher> FileSystemWatchers = new List<FileSystemWatcher>();
         static bool FW_HaveChanges = false;
-        static List<string> noIconCacheExtensions = new List<string>() { ".lnk", ".url", ".exe" };
-        static ConcurrentDictionary<string, Image> CachedIcons = new ConcurrentDictionary<string, Image>();
 
         [STAThread]
         static void Main()
@@ -54,7 +54,14 @@ namespace TrayFolderMenu
 
         private static void createFileWatchers()
         {
-            FileSystemWatchers.ForEach(x => x.Dispose());
+            FileSystemWatchers.ForEach(x =>
+            {
+                x.Created -= FW_Changed;
+                x.Deleted -= FW_Changed;
+                x.Renamed -= FW_Changed;
+                x.Error -= FW_Error;
+                x.Dispose();
+            });
             FileSystemWatchers.Clear();
             foreach (var folder in Properties.Settings.Default.Folders)
             {
@@ -92,7 +99,7 @@ namespace TrayFolderMenu
 
         private static void Timer_Tick(object sender, EventArgs e)
         {
-            if (backgroundWorker.IsBusy && FW_HaveChanges == true)
+            if (!backgroundWorker.IsBusy && FW_HaveChanges == true)
             {
                 timer.Stop();
                 FW_HaveChanges = false;
@@ -102,15 +109,32 @@ namespace TrayFolderMenu
 
         private static void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
+            if (e.Error == null)
+            {
+                var appMenu = new ToolStripMenuItem();
+                appMenu.Text = "Apps";
+                appMenu.DoubleClickEnabled = false;
+                appMenu.Image = Properties.Resources.icoFolder.ToBitmap();
+
+                var apps = (List<AppInfo>)e.Result;
+                apps = apps.OrderBy(x => x.Name).ToList();
+                foreach (var app in apps)
+                {
+                    var menuItem = new ToolStripMenuItem();
+                    menuItem.Text = Path.GetFileNameWithoutExtension(app.Name);
+                    menuItem.Tag = app.LaunchInfo;
+                    menuItem.MouseDown += FileMenu_MouseDown;
+                    menuItem.Image = IconProvider.GetImage(app.LaunchInfo);
+                    appMenu.DropDownItems.Add(menuItem);
+                }
+                contextMenu.Items.Add(appMenu);
+            }
+
             timer.Start();
         }
 
         private static void BackgroundWorker_DoWork(object sender, DoWorkEventArgs e)
         {
-            foreach (ToolStripItem item in contextMenu.Items)
-            {
-                item.Dispose();
-            }
             contextMenu.Items.Clear();
 
             var folders = new List<string>();
@@ -130,13 +154,16 @@ namespace TrayFolderMenu
                     contextMenu.Items.Add(menu);
                 }
             }
+
+            // This is an MTA thread. We hop to a dedicated STA and wait.
+            e.Result = AppsFolderReader.EnumerateAppsOnSta();
         }
 
         private static ToolStripMenuItem MakeFolderMenuItem(string folder)
         {
             var folderMenu = new ToolStripMenuItem();
             folderMenu.Text = Path.GetFileName(folder);
-            folderMenu.Tag = folder;
+            folderMenu.Tag = new LaunchInfo() { Kind = LaunchInfo.ItemKind.FilePath, Path = folder };
             folderMenu.DoubleClickEnabled = true;
             folderMenu.DoubleClick += FolderMenu_DoubleClick;
             folderMenu.MouseDown += FolderMenu_MouseDown;
@@ -202,13 +229,13 @@ namespace TrayFolderMenu
         {
             var fileMenu = new ToolStripMenuItem();
             var ext = Path.GetExtension(file);
-            if (noIconCacheExtensions.Contains(ext))
+            if (ShellInterop.noIconCacheExtensions.Contains(ext))
                 fileMenu.Text = Path.GetFileNameWithoutExtension(file);
             else
                 fileMenu.Text = Path.GetFileName(file);
-            fileMenu.Tag = file;
+            fileMenu.Tag = new LaunchInfo() { Kind = LaunchInfo.ItemKind.FilePath, Path = file };
             fileMenu.MouseDown += FileMenu_MouseDown;
-            fileMenu.Image = getIconFromFilename(file);
+            fileMenu.Image = IconProvider.GetImage((LaunchInfo)fileMenu.Tag);
             return fileMenu;
         }
 
@@ -217,34 +244,56 @@ namespace TrayFolderMenu
             try
             {
                 var menuItem = (ToolStripMenuItem)sender;
-                var tag = (string)(menuItem.Tag);
-                if (!File.Exists(tag))
+                var tag = (LaunchInfo)(menuItem.Tag);
+                if (tag.Kind == LaunchInfo.ItemKind.FilePath && !File.Exists(tag.Path))
                 {
-                    new ToastContentBuilder().AddText($"File {tag} does not exist.").AddText("Please reload").Show();
+                    new ToastContentBuilder().AddText($"File {tag.Path} does not exist.").AddText("Please reload").Show();
                     return;
                 }
                 if (e.Button == MouseButtons.Left)
                 {
-                    ProcessStartInfo psi = new ProcessStartInfo(tag);
-                    psi.UseShellExecute = true;
-                    Process.Start(psi);
+                    switch (tag.Kind)
+                    {
+                        case ItemKind.FilePath:
+                            Process.Start(new ProcessStartInfo(tag.Path) { UseShellExecute = true });
+                            break;
+
+                        case ItemKind.Url:
+                        case ItemKind.UriScheme:
+                            Process.Start(new ProcessStartInfo(tag.Path) { UseShellExecute = true });
+                            break;
+
+                        case ItemKind.KnownFolderPath:
+                            Process.Start(new ProcessStartInfo(ShellInterop.ExpandKnownFolderPath(tag.Path)) { UseShellExecute = true });
+                            break;
+
+                        case ItemKind.AppsFolderItem:
+                            // Works for UWP (…!App), unpackaged AUMIDs (e.g., Microsoft.VisualStudioCode),
+                            // “AutoGenerated” IDs, Chrome/MSEdge IDs, etc.
+                            Process.Start(new ProcessStartInfo("explorer.exe", $"shell:AppsFolder\\{tag.Path}")
+                            { UseShellExecute = true });
+                            break;
+                    }
                 }
                 else if (e.Button == MouseButtons.Right)
                 {
-                    ShellContextMenu ctxMnu = new ShellContextMenu();
-                    FileInfo[] arrFI = new FileInfo[1];
-                    arrFI[0] = new FileInfo(tag);
-                    ToolStrip parent = menuItem.GetCurrentParent();
-                    int y = 0;
-                    foreach (ToolStripItem item in parent.Items)
+                    if (tag.Kind == ItemKind.FilePath)
                     {
-                        if (item == menuItem)
-                            break;
-                        if (item.Visible == true)
-                            y += item.Height;
+                        ShellContextMenu ctxMnu = new ShellContextMenu();
+                        FileInfo[] arrFI = new FileInfo[1];
+                        arrFI[0] = new FileInfo(tag.Path);
+                        ToolStrip parent = menuItem.GetCurrentParent();
+                        int y = 0;
+                        foreach (ToolStripItem item in parent.Items)
+                        {
+                            if (item == menuItem)
+                                break;
+                            if (item.Visible == true)
+                                y += item.Height;
+                        }
+                        var point = parent.PointToScreen(new Point(-4, y));
+                        ctxMnu.ShowContextMenu(arrFI, point);
                     }
-                    var point = parent.PointToScreen(new Point(-4, y));
-                    ctxMnu.ShowContextMenu(arrFI, point);
                 }
             }
             catch (Exception ex)
@@ -258,10 +307,10 @@ namespace TrayFolderMenu
             try
             {
                 var menuItem = (ToolStripMenuItem)sender;
-                var tag = (string)(menuItem.Tag);
-                if (!Directory.Exists(tag))
+                var tag = (LaunchInfo)(menuItem.Tag);
+                if (!Directory.Exists(tag.Path))
                 {
-                    new ToastContentBuilder().AddText($"Directory {tag} does not exist.").AddText("Please reload").Show();
+                    new ToastContentBuilder().AddText($"Directory {tag.Path} does not exist.").AddText("Please reload").Show();
                     return;
                 }
 
@@ -269,7 +318,7 @@ namespace TrayFolderMenu
                 {
                     ShellContextMenu ctxMnu = new ShellContextMenu();
                     DirectoryInfo[] arrFI = new DirectoryInfo[1];
-                    arrFI[0] = new DirectoryInfo(tag);
+                    arrFI[0] = new DirectoryInfo(tag.Path);
                     ToolStrip parent = menuItem.GetCurrentParent();
                     int y = 0;
                     foreach (ToolStripItem item in parent.Items)
@@ -293,14 +342,14 @@ namespace TrayFolderMenu
         {
             try
             {
-                var tag = (string)((ToolStripMenuItem)sender).Tag;
-                if (!Directory.Exists(tag))
+                var tag = (LaunchInfo)((ToolStripMenuItem)sender).Tag;
+                if (!Directory.Exists(tag.Path))
                 {
-                    new ToastContentBuilder().AddText($"Directory {tag} does not exist.").AddText("Please reload").Show();
+                    new ToastContentBuilder().AddText($"Directory {tag.Path} does not exist.").AddText("Please reload").Show();
                     return;
                 }
 
-                ProcessStartInfo psi = new ProcessStartInfo(tag);
+                ProcessStartInfo psi = new ProcessStartInfo(tag.Path);
                 psi.UseShellExecute = true;
                 Process.Start(psi);
             }
@@ -328,50 +377,5 @@ namespace TrayFolderMenu
                 new ToastContentBuilder().AddText("Loading...").AddText("Please wait").Show();
             }
         }
-
-
-        //-----------------------------------------------------------------------------
-        [DllImport("shell32.dll", CharSet = CharSet.Ansi)]
-        public static extern IntPtr SHGetFileInfo(string pszPath, uint dwFileAttributes, ref SHFILEINFO psfi, uint cbSizeFileInfo, uint uFlags);
-
-        [DllImport("user32")]
-        public static extern int DestroyIcon(IntPtr hIcon);
-
-        public const uint SHGFI_ICON = 0x000000100;
-        public const uint SHGFI_SMALLICON = 0x000000001;
-        public const uint SHGFI_USEFILEATTRIBUTES = 0x000000010;
-
-        [StructLayout(LayoutKind.Sequential)]
-        public struct SHFILEINFO
-        {
-            public IntPtr hIcon;
-            public int iIcon;
-            public uint dwAttributes;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 260)]
-            public string szDisplayName;
-            [MarshalAs(UnmanagedType.ByValTStr, SizeConst = 80)]
-            public string szTypeName;
-        };
-
-        public static Image getIconFromFilename(string fName)
-        {
-            if (Path.HasExtension(fName) == false)
-                return null;
-
-            var ext = System.IO.Path.GetExtension(fName);
-            if (!noIconCacheExtensions.Contains(ext) && CachedIcons.ContainsKey(ext))
-                return CachedIcons[ext];
-
-            SHFILEINFO shinfo = new SHFILEINFO();
-            SHGetFileInfo(fName, 0, ref shinfo, (uint)Marshal.SizeOf(shinfo), SHGFI_USEFILEATTRIBUTES | SHGFI_ICON | SHGFI_SMALLICON);
-            Icon myIcon = (System.Drawing.Icon)(System.Drawing.Icon.FromHandle(shinfo.hIcon).Clone());
-            DestroyIcon(shinfo.hIcon);
-            var result = myIcon.ToBitmap();
-            CachedIcons.TryAdd(ext, result);
-            return result;
-        }
-        //-----------------------------------------------------------------------------
-
-
     }
 }
