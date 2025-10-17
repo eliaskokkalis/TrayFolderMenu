@@ -35,5 +35,17 @@ namespace TrayFolderMenu.Properties {
                 this["Folders"] = value;
             }
         }
+        
+        [global::System.Configuration.UserScopedSettingAttribute()]
+        [global::System.Diagnostics.DebuggerNonUserCodeAttribute()]
+        [global::System.Configuration.DefaultSettingValueAttribute("False")]
+        public bool ShowApps {
+            get {
+                return ((bool)(this["ShowApps"]));
+            }
+            set {
+                this["ShowApps"] = value;
+            }
+        }
     }
 }

@@ -37,9 +37,10 @@ namespace TrayFolderMenu
             btnExit = new System.Windows.Forms.Button();
             toolTip1 = new System.Windows.Forms.ToolTip(components);
             grdFolders = new System.Windows.Forms.DataGridView();
-            folderConfigBindingSource = new System.Windows.Forms.BindingSource(components);
             pathDataGridViewTextBoxColumn = new System.Windows.Forms.DataGridViewTextBoxColumn();
             showExeOnlyDataGridViewCheckBoxColumn = new System.Windows.Forms.DataGridViewCheckBoxColumn();
+            folderConfigBindingSource = new System.Windows.Forms.BindingSource(components);
+            chkShowApps = new System.Windows.Forms.CheckBox();
             ((System.ComponentModel.ISupportInitialize)grdFolders).BeginInit();
             ((System.ComponentModel.ISupportInitialize)folderConfigBindingSource).BeginInit();
             SuspendLayout();
@@ -72,7 +73,7 @@ namespace TrayFolderMenu
             // 
             btnCancel.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             btnCancel.DialogResult = System.Windows.Forms.DialogResult.Cancel;
-            btnCancel.Location = new System.Drawing.Point(450, 244);
+            btnCancel.Location = new System.Drawing.Point(450, 228);
             btnCancel.Name = "btnCancel";
             btnCancel.Size = new System.Drawing.Size(32, 32);
             btnCancel.TabIndex = 5;
@@ -85,7 +86,7 @@ namespace TrayFolderMenu
             // 
             btnOK.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Right;
             btnOK.DialogResult = System.Windows.Forms.DialogResult.OK;
-            btnOK.Location = new System.Drawing.Point(488, 244);
+            btnOK.Location = new System.Drawing.Point(488, 228);
             btnOK.Name = "btnOK";
             btnOK.Size = new System.Drawing.Size(32, 32);
             btnOK.TabIndex = 6;
@@ -97,7 +98,7 @@ namespace TrayFolderMenu
             // btnExit
             // 
             btnExit.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
-            btnExit.Location = new System.Drawing.Point(12, 244);
+            btnExit.Location = new System.Drawing.Point(12, 228);
             btnExit.Name = "btnExit";
             btnExit.Size = new System.Drawing.Size(122, 32);
             btnExit.TabIndex = 7;
@@ -122,12 +123,8 @@ namespace TrayFolderMenu
             grdFolders.Location = new System.Drawing.Point(12, 12);
             grdFolders.Name = "grdFolders";
             grdFolders.SelectionMode = System.Windows.Forms.DataGridViewSelectionMode.FullRowSelect;
-            grdFolders.Size = new System.Drawing.Size(470, 226);
+            grdFolders.Size = new System.Drawing.Size(470, 185);
             grdFolders.TabIndex = 8;
-            // 
-            // folderConfigBindingSource
-            // 
-            folderConfigBindingSource.DataSource = typeof(FolderConfig);
             // 
             // pathDataGridViewTextBoxColumn
             // 
@@ -145,12 +142,29 @@ namespace TrayFolderMenu
             showExeOnlyDataGridViewCheckBoxColumn.Name = "showExeOnlyDataGridViewCheckBoxColumn";
             showExeOnlyDataGridViewCheckBoxColumn.Resizable = System.Windows.Forms.DataGridViewTriState.False;
             // 
+            // folderConfigBindingSource
+            // 
+            folderConfigBindingSource.DataSource = typeof(FolderConfig);
+            // 
+            // chkShowApps
+            // 
+            chkShowApps.Anchor = System.Windows.Forms.AnchorStyles.Bottom | System.Windows.Forms.AnchorStyles.Left;
+            chkShowApps.AutoSize = true;
+            chkShowApps.CheckAlign = System.Drawing.ContentAlignment.MiddleRight;
+            chkShowApps.Location = new System.Drawing.Point(12, 203);
+            chkShowApps.Name = "chkShowApps";
+            chkShowApps.Size = new System.Drawing.Size(119, 19);
+            chkShowApps.TabIndex = 9;
+            chkShowApps.Text = "Show Apps Menu";
+            chkShowApps.UseVisualStyleBackColor = true;
+            // 
             // frmOptions
             // 
             AutoScaleDimensions = new System.Drawing.SizeF(7F, 15F);
             AutoScaleMode = System.Windows.Forms.AutoScaleMode.Font;
-            ClientSize = new System.Drawing.Size(532, 288);
+            ClientSize = new System.Drawing.Size(532, 272);
             ControlBox = false;
+            Controls.Add(chkShowApps);
             Controls.Add(grdFolders);
             Controls.Add(btnExit);
             Controls.Add(btnOK);
@@ -166,6 +180,7 @@ namespace TrayFolderMenu
             ((System.ComponentModel.ISupportInitialize)grdFolders).EndInit();
             ((System.ComponentModel.ISupportInitialize)folderConfigBindingSource).EndInit();
             ResumeLayout(false);
+            PerformLayout();
 
         }
 
@@ -180,6 +195,7 @@ namespace TrayFolderMenu
         private System.Windows.Forms.BindingSource folderConfigBindingSource;
         private System.Windows.Forms.DataGridViewTextBoxColumn pathDataGridViewTextBoxColumn;
         private System.Windows.Forms.DataGridViewCheckBoxColumn showExeOnlyDataGridViewCheckBoxColumn;
+        private System.Windows.Forms.CheckBox chkShowApps;
     }
 }
 

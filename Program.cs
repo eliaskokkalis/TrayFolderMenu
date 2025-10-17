@@ -109,7 +109,7 @@ namespace TrayFolderMenu
 
         private static void BackgroundWorker_RunWorkerCompleted(object sender, RunWorkerCompletedEventArgs e)
         {
-            if (e.Error == null)
+            if (Properties.Settings.Default.ShowApps == true && e.Error == null)
             {
                 var appMenu = new ToolStripMenuItem();
                 appMenu.Text = "Apps";
@@ -117,11 +117,11 @@ namespace TrayFolderMenu
                 appMenu.Image = Properties.Resources.icoFolder.ToBitmap();
 
                 var apps = (List<AppInfo>)e.Result;
-                apps = apps.OrderBy(x => x.Name).ToList();
+                apps = apps.OrderBy(x =>x.LaunchInfo.Kind.ToString() + " - " + x.Name).ToList();
                 foreach (var app in apps)
                 {
                     var menuItem = new ToolStripMenuItem();
-                    menuItem.Text = Path.GetFileNameWithoutExtension(app.Name);
+                    menuItem.Text = app.LaunchInfo.Kind.ToString() + " - " + app.Name;
                     menuItem.Tag = app.LaunchInfo;
                     menuItem.MouseDown += FileMenu_MouseDown;
                     menuItem.Image = IconProvider.GetImage(app.LaunchInfo);
@@ -155,8 +155,11 @@ namespace TrayFolderMenu
                 }
             }
 
-            // This is an MTA thread. We hop to a dedicated STA and wait.
-            e.Result = AppsFolderReader.EnumerateAppsOnSta();
+            if (Properties.Settings.Default.ShowApps == true)
+            {
+                // This is an MTA thread. We hop to a dedicated STA and wait.
+                e.Result = AppsFolderReader.EnumerateAppsOnSta();
+            }
         }
 
         private static ToolStripMenuItem MakeFolderMenuItem(string folder)

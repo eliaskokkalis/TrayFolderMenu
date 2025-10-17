@@ -31,6 +31,8 @@ namespace TrayFolderMenu
                 folders.Add(folderConfig);
             }
             folderConfigBindingSource.DataSource = folders;
+
+            chkShowApps.Checked = Properties.Settings.Default.ShowApps;
         }
 
 
@@ -90,6 +92,7 @@ namespace TrayFolderMenu
                 folders.Add(Newtonsoft.Json.JsonConvert.SerializeObject(folderConfig));
             }
             Properties.Settings.Default.Folders = folders;
+            Properties.Settings.Default.ShowApps = chkShowApps.Checked;
             Properties.Settings.Default.Save();
             this.Hide();
         }
