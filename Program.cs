@@ -53,7 +53,8 @@ namespace TrayFolderMenu
 
                 Application.Run();
             }
-            catch (Exception ex) {
+            catch (Exception ex)
+            {
                 Debugger.Break();
             }
             finally
@@ -127,11 +128,11 @@ namespace TrayFolderMenu
                 appMenu.Image = Properties.Resources.icoFolder.ToBitmap();
 
                 var apps = (List<AppInfo>)e.Result;
-                apps = apps.OrderBy(x => x.LaunchInfo.Kind.ToString() + " - " + x.Name).ToList();
+                apps = apps.OrderBy(x => x.Name).ToList();
                 foreach (var app in apps)
                 {
                     var menuItem = new ToolStripMenuItem();
-                    menuItem.Text = app.LaunchInfo.Kind.ToString() + " - " + app.Name;
+                    menuItem.Text = app.Name;
                     menuItem.Tag = app;
                     menuItem.MouseDown += FileMenu_MouseDown;
                     menuItem.Image = IconProvider.GetImage(app.LaunchInfo);
