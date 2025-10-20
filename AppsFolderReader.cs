@@ -32,7 +32,7 @@ namespace TrayFolderMenu
                         string parsingPath = item.Path;
                         string aumid = item.ExtendedProperty("AppUserModelID") as string;
 
-                        list.Add(new AppInfo
+                        var appInfo = new AppInfo
                         {
                             Name = name,
                             AppUserModelId = aumid,
@@ -41,7 +41,16 @@ namespace TrayFolderMenu
                                 Kind = Classify(parsingPath),
                                 Path = parsingPath
                             }
-                        });
+                        };
+
+                        if (ShellContextMenu.SHGetIDListFromObject(item, out var pidl) == 0 && pidl != IntPtr.Zero)
+                        {
+                            appInfo.fi = ShellContextMenu.ILClone(pidl); // stable copy
+                                                                         // store pidlClone somewhere (ListViewItem.Tag = pidlClone, or your model)
+                                                                         // IMPORTANT: do NOT store `item` itself
+                        }
+
+                        list.Add(appInfo);
                     }
 
                     result = list;

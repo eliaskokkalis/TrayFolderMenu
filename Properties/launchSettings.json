@@ -1,0 +1,8 @@
+{
+  "profiles": {
+    "TrayFolderMenu": {
+      "commandName": "Project",
+      "nativeDebugging": true
+    }
+  }
+}

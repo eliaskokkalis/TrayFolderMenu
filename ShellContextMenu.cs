@@ -7,6 +7,7 @@ using System.Windows.Forms;
 using System.IO;
 using System.Security.Permissions;
 using System.Xml.Linq;
+using System.Diagnostics;
 
 namespace TrayFolderMenu
 {
@@ -546,6 +547,79 @@ namespace TrayFolderMenu
                 ReleaseAll();
             }
         }
+
+        public void ShowContextMenu(IntPtr hwndOwner, nint pidl, System.Drawing.Point screenPoint)
+        {
+            //if (item == null) return;
+
+            // 1) Get absolute PIDL for this item
+            //int hr = SHGetIDListFromObject(item, out var pidlAbs);
+            if (pidl == IntPtr.Zero) return;
+
+            // 2) Bind to parent IShellFolder and get child relative PIDL
+            SHBindToParent(pidl, ref IID_IShellFolder, out var parent, out var pidlChild);
+
+            try
+            {
+                // 3) Ask parent for IContextMenu of the child
+                IntPtr pCtx;
+                parent.GetUIObjectOf(hwndOwner, 1, new[] { pidlChild }, ref IID_IContextMenu, IntPtr.Zero, out pCtx);
+
+                if (pCtx != IntPtr.Zero)
+                {
+                    // Try IContextMenu3 first (best behavior), fall back to 2/1
+                    object obj = Marshal.GetObjectForIUnknown(pCtx);
+                    var cm3 = obj as IContextMenu3;
+                    var cm2 = obj as IContextMenu2;
+                    var cm = obj as IContextMenu;
+
+                    // 4) Build the popup menu
+                    IntPtr hMenu = CreatePopupMenu();
+                    try
+                    {
+                        cm.QueryContextMenu(hMenu, 0, CMD_FIRST, CMD_LAST, CMF_NORMAL);
+
+                        // 5) Show and get chosen command id
+                        uint cmd = TrackPopupMenuEx(
+                            hMenu,
+                            TPM.RETURNCMD,
+                            screenPoint.X, screenPoint.Y,
+                            hwndOwner,
+                            IntPtr.Zero
+                        );
+
+                        if (cmd != 0)
+                        {
+                            // 6) Invoke selected command on the shell extension
+                            var info = new CMINVOKECOMMANDINFOEX
+                            {
+                                cbSize = Marshal.SizeOf<CMINVOKECOMMANDINFOEX>(),
+                                fMask = CMIC.UNICODE | CMIC.PTINVOKE,
+                                hwnd = hwndOwner,
+                                lpVerb = (IntPtr)((int)cmd - CMD_FIRST), // MAKEINTRESOURCEA
+                                nShow = SW.SHOWNORMAL,
+                                ptInvoke = new POINT { x = screenPoint.X, y = screenPoint.Y }
+                            };
+                            cm.InvokeCommand(ref info);
+                        }
+                    }
+                    catch (Exception ex) { Debugger.Break(); }
+                    finally
+                    {
+                        DestroyMenu(hMenu);
+                        if (cm3 != null) Marshal.ReleaseComObject(cm3);
+                        else if (cm2 != null) Marshal.ReleaseComObject(cm2);
+                        else if (cm != null) Marshal.ReleaseComObject(cm);
+                        Marshal.Release(pCtx);
+                    }
+                }
+            }
+            catch (Exception ex) { Debugger.Break(); }
+            finally
+            {
+                Marshal.ReleaseComObject(parent);
+            }
+        }
         #endregion
 
         #region Local variabled
@@ -563,7 +637,10 @@ namespace TrayFolderMenu
         private const int MAX_PATH = 260;
         private const uint CMD_FIRST = 1;
         private const uint CMD_LAST = 30000;
+        private const uint CMF_NORMAL = 0x00000000;
+        private const uint TPM_RETURNCMD = 0x0100;
 
+        private const int SW_SHOWNORMAL = 1;
         private const int S_OK = 0;
         private const int S_FALSE = 1;
 
@@ -597,6 +674,18 @@ namespace TrayFolderMenu
         // Determines the default menu item on the specified menu
         [DllImport("user32", SetLastError = true, CharSet = CharSet.Auto)]
         private static extern int GetMenuDefaultItem(IntPtr hMenu, bool fByPos, uint gmdiFlags);
+
+        [DllImport("shell32.dll")]
+        public static extern int SHGetIDListFromObject([MarshalAs(UnmanagedType.IUnknown)] object punk, out IntPtr ppidl);
+
+        [DllImport("shell32.dll")]
+        private static extern int SHBindToParent(IntPtr pidl, ref Guid riid, out IShellFolder ppv, out IntPtr ppidlLast);
+
+        [DllImport("shell32.dll")]
+        public static extern IntPtr ILClone(IntPtr pidl);
+
+        [DllImport("shell32.dll")]
+        public static extern void ILFree(IntPtr pidl);
 
         #endregion
 
@@ -854,7 +943,7 @@ namespace TrayFolderMenu
             SHIFT_DOWN = 0x10000000,
             CONTROL_DOWN = 0x40000000,
             FLAG_LOG_USAGE = 0x04000000,
-            PTINVOKE = 0x20000000
+            PTINVOKE = 0x20000000,
         }
 
         // Specifies how the window is to be shown

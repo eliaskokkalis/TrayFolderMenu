@@ -11,5 +11,6 @@ namespace TrayFolderMenu
         public string Name { get; init; }
         public string AppUserModelId { get; init; }
         public LaunchInfo LaunchInfo { get; set; }
+        public nint fi { get; set; }
     }
 }
