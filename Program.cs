@@ -55,6 +55,7 @@ namespace TrayFolderMenu
             }
             catch (Exception ex)
             {
+                Debug.WriteLine(ex.ToString());
                 Debugger.Break();
             }
             finally
